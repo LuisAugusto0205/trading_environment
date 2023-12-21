@@ -14,9 +14,16 @@ Para configurar um experimento, agora é possível customizar os parâmetros do 
 * **n_times**: Quantidade de vezes que experimento será executado
 * **model**: Modelo que será utilizado dentro do algoritmo selecionado
 
-Exemplo de comando:
+Exemplo de comando para executar com RLib:
 
 > python main.py --ticket BBAS3.SA --train_time 2000-01-01/2020-01-01 --eval_time 2020-01-01/2023-12-01 --patrimony 1000 --position 0, 1 --model FullyCon
+
+A implementação do DQN do respositório https://github.com/udacity/deep-reinforcement-learning/tree/master, pode ser executada pelo comando:
+
+> python .\Algorithms\DQN\train.py
+
+
+
 
 ## Pacotes requisitados:
 * ray[rllib]
