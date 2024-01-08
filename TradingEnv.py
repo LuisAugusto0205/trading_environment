@@ -24,7 +24,7 @@ class TradingMarket(gym.Env):
                 shape = [len(obs)],
                 dtype=np.float64
         )
-        self.reward_func = utils.log_return
+        self.reward_func = utils.opportunity
 
     def valorisation(self, price):
         """
@@ -64,6 +64,7 @@ class TradingMarket(gym.Env):
         self.position = 0
         self.avaiable_money = (1 - self.position) * self.initial_value
         price = self.historical_price.iloc[self.idx, :]['Close']
+        self.baseline_n_assets = self.initial_value / price
         self.n_assets = self.position * self.initial_value / price
         self.history = [(
             self.historical_price.iloc[0, :].name.strftime("%m/%d/%Y"),
@@ -98,7 +99,7 @@ class TradingMarket(gym.Env):
             self.avaiable_money -= 0.001*asset_to_trade*price
         
         next_price = self.historical_price.iloc[self.idx+1, :]['Close']
-        new_value = self.valorisation(price)
+        new_value = self.valorisation(next_price)
 
         self.history.append((
             self.historical_price.iloc[self.idx+1, :].name.strftime("%m/%d/%Y"), 
@@ -107,12 +108,12 @@ class TradingMarket(gym.Env):
             next_price
         ))
 
-        self.idx += 1
-        self.steps += 1
         reward = self.reward_func(
             self.history[max(self.steps-self.window, 0) : self.steps+1], 
             #k=3
         )
+        self.idx += 1
+        self.steps += 1
 
         if self.steps == self.epi_len or self.idx == self.historical_price.shape[0]-1:
             self.done = True
@@ -124,4 +125,36 @@ class TradingMarket(gym.Env):
         """
         Função de recompensa que guiará o aprendizado.
         """
-        return self.reward_func(history, **kwargs)
+        op = utils.opportunity(self.history, k=3)
+        ret = utils.log_return(self.history)
+        price = self.historical_price.iloc[self.idx, :]['Close']
+        val = self.valorisation(price)
+        base = utils.compare_baseline(self.history, val, k=self.window)
+        up_low = utils.upper_lower(self.historical_price.iloc[self.idx: self.idx+2, :]['Close'], self.position)
+        return 0.8*up_low + 0.2*base #1*op + 0*ret + 0*base
+    
+
+class SimpleTradingEnv(TradingMarket):
+    def __init__(self, env_config):
+        super().__init__(env_config)
+        self.observation_space = spaces.MultiBinary(9)
+    
+    def _get_obs(self):
+        obs = super()._get_obs()
+        MR_upper = obs[0] > 1.5
+        MR_lower = obs[0] < -1.5
+        RSI_upper = obs[1] > 70
+        RSI_lower = obs[1] < 30
+        MACD_signal = obs[2] > obs[3]
+        K_upper = obs[4] > 80
+        K_lower = obs[4] < 20
+
+        onehot_action = np.zeros(self.positions.shape, dtype=np.float64)
+        onehot_action[np.where(self.positions == self.position)] = 1
+
+        simple_obs = np.concatenate([
+            [MR_upper, MR_lower, RSI_upper, RSI_lower, MACD_signal, K_upper, K_lower],
+            onehot_action
+        ])
+
+        return simple_obs
