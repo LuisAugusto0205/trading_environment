@@ -1,0 +1,13 @@
+matplotlib
+ray[rllib]
+pandas_datareader
+yfinance
+
+--find-links https://download.pytorch.org/whl/cu121
+torch 
+
+--find-links https://download.pytorch.org/whl/cu121
+torchvision 
+
+--find-links https://download.pytorch.org/whl/cu121
+torchaudio 

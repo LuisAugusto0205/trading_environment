@@ -67,12 +67,21 @@ def ddpg(n_episodes=2000, max_t=300, print_every=20):
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
+<<<<<<< HEAD
     nn_filename_actor = "ddpg_actor_" + timestr + ".pth"
     nn_filename_critic = "ddpg_critic_" + timestr + ".pth"
     torch.save(agent.actor_local.state_dict(), nn_filename_actor)
     torch.save(agent.critic_local.state_dict(), nn_filename_critic)
 
     scores_filename = "ddpgAgent_scores_" + timestr + ".csv"
+=======
+    nn_filename_actor = "Algorithms/DDPG/results/ddpg_actor_" + timestr + ".pth"
+    nn_filename_critic = "Algorithms/DDPG/results/ddpg_critic_" + timestr + ".pth"
+    torch.save(agent.actor_local.state_dict(), nn_filename_actor)
+    torch.save(agent.critic_local.state_dict(), nn_filename_critic)
+
+    scores_filename = "Algorithms/DDPG/results/ddpgAgent_scores_" + timestr + ".csv"
+>>>>>>> 3a230e5cd2b7bfb0609965529f37fb69a8899198
     np.savetxt(scores_filename, scores, delimiter=",")
 
     return scores
