@@ -8,11 +8,12 @@ import argparse
 import numpy as np
 from collections import deque
 from dqn_agent import Agent
-from TradingEnv import TradingMarket
+from TradingEnv import TradingMarket, SimpleTradingEnv
 import gymnasium as gym
 import pandas_datareader.data as pdr
 import yfinance
 import utils
+import pandas as pd
 
 yfinance.pdr_override()
 
@@ -29,7 +30,7 @@ parser.add_argument('--ticket', type=str, default='AAPL',
                     help='Ticket from Yahoo Finance')
 parser.add_argument('--train_time', type=str, default='2005-01-01/2020-01-01',
                     help='Time range that agent will be trained')
-parser.add_argument('--n_eps', type=int, default=2000,
+parser.add_argument('--n_eps', type=int, default=6000,
                     help='Number of episodes')
 args = parser.parse_args()
 
@@ -69,8 +70,12 @@ agent = Agent(
     update_rate=4,
     learning_rate=1e-4
 )
+agent.network.load_state_dict(torch.load(f'Algorithms\\DQN\\results\\dqnAgent_Trained_Model_AAPL-20240108-023442_up-low_best.pth'))
 
 for i_episode in range(1, num_episodes+1):
+    # if i_episode < 6001:
+    #     epsilon = max(epsilon_min, epsilon_decay*epsilon)
+    #     continue
 
     state, _ = env.reset()   
     score = 0
@@ -90,12 +95,13 @@ for i_episode in range(1, num_episodes+1):
             break
     
     scores.append(score)
-    average_score = np.mean(scores[i_episode-min(i_episode,scores_average_window):i_episode+1])
+    idx = i_episode #- 6001
+    average_score = np.mean(scores[idx-min(idx,scores_average_window):idx+1])
 
     epsilon = max(epsilon_min, epsilon_decay*epsilon)
     patrimony = env.valorisation(last_price)
     diffs.append(patrimony-baseline)
-    average_diff = np.mean(diffs[i_episode-min(i_episode,scores_average_window):i_episode+1])
+    average_diff = np.mean(diffs[idx-min(i_episode,scores_average_window):idx+1])
     
     print('\rEpi {}\tAvg Rwd: {:.2f}\tBaseline: {:.2f}\tpat: {:.2f}\tavg diff: {:.2f}'.format(i_episode, average_score, baseline, patrimony, average_diff), end="")
     # Print average score every scores_average_window episodes
@@ -107,6 +113,5 @@ timestr = time.strftime("%Y%m%d-%H%M%S")
 nn_filename = "Algorithms/DQN/results/dqnAgent_Trained_Model_" + ticket + "-" + timestr + ".pth"
 torch.save(agent.network.state_dict(), nn_filename)
 
-# Save the recorded Scores data
-scores_filename = "Algorithms/DQN/results/dqnAgent_scores_" + ticket + "-" + timestr + ".csv"
-np.savetxt(scores_filename, scores, delimiter=",")
+df = pd.DataFrame({"Reward": scores, "Diff baseline": diffs})
+df.to_csv(f'Algorithms/DQN/results/rwd_diff_{timestr}.csv', index=False)
