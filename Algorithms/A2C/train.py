@@ -48,7 +48,7 @@ if __name__ == '__main__':
     env_id = "TradeEnvTrain"
     env = gym.make(env_id)
 
-    model = A2C("MlpPolicy", env, verbose=1, device='cuda')
+    model = A2C("MlpPolicy", env, verbose=1, device='cuda', tensorboard_log='.\\Algorithms\\A2C\\logs')
     model.learn(total_timesteps=300*num_episodes, log_interval=4, progress_bar=True)
 
     timestr = time.strftime("%Y%m%d-%H%M%S")

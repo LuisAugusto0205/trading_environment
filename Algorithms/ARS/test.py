@@ -13,18 +13,17 @@ import yfinance
 
 yfinance.pdr_override()
 
+num_episodes=1
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--ticket', type=str, default='AAPL',
                     help='Ticket from Yahoo Finance')
 parser.add_argument('--test_time', type=str, default='2020-01-01/2024-01-01',
                     help='Time range that agent will be trained')
 
-parser.add_argument('--save', type=str, default='',
-                    help='Path to Saved model')
-
 args = parser.parse_args()
-path_save = args.save
-num_episodes = 1000
+
+num_episodes = 100
 
 ticket=args.ticket
 dt_ini_test=args.test_time.split('/')[0]
@@ -47,11 +46,9 @@ gym.envs.register(
 )
 
 env = gym.make('TradeEnvTest')
-agent = ARS.load(f'Algorithms/ARS/results/{path_save}')
+agent = ARS.load('Algorithms/ARS/results/TradingEnv-AAPL-20240108-170129')
 
 diffs = []
-scores = []
-print(num_episodes)
 for i_episode in range(num_episodes):
     state, _ = env.reset()     
 
@@ -73,14 +70,12 @@ for i_episode in range(num_episodes):
     patrimony = env.history[-1][1][0]
     diff = patrimony - baseline
     diffs.append(diff)
-    scores.append(score)
     print('\rEp: {}\tAverage Score: {:.2f}\tbaseline: {:.2f}\tpatrimony: {:.2f}\tdiff: {:.2f}'.format(i_episode, score, baseline, patrimony, diff), end="")
 
 diffs = np.array(diffs)
-scores = np.array(scores)
 n_pos_diff = (diffs > 0).sum()
 n_neg_diff = num_episodes - n_pos_diff
-print(f'\n\npositive diff: {n_pos_diff}\nnegative diff: {n_neg_diff}\n Avg diff: {diffs.mean()}\n Std diff: {diffs.std()}\n Avg rwd: {scores.mean()}\n Std rwd: {scores.std()}')
+print(f'\n\npositive diff: {n_pos_diff}\nnegative diff: {n_neg_diff}\n Avg diff: {diffs.mean()}\n Std diff: {diffs.std()}')
 
 timestr = time.strftime("%Y%m%d-%H%M%S")
 with open(f"Algorithms\\ARS\\results\\log_ars_return-{ticket.replace('.', '-')}-{timestr}.txt", "w") as file:

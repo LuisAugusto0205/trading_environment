@@ -13,32 +13,19 @@ import pandas_datareader.data as pdr
 import yfinance
 import utils
 import matplotlib.pyplot as plt
-import argparse
 
 yfinance.pdr_override()
 
-num_episodes=6000
+num_episodes=2000
 epsilon=1.0
 epsilon_min=0.01
 epsilon_decay=0.995
 scores = []
 scores_average_window = 20               
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--ticket', type=str, default='AAPL',
-                    help='Ticket from Yahoo Finance')
-parser.add_argument('--train_time', type=str, default='2005-01-01/2020-01-01',
-                    help='Time range that agent will be trained')
-parser.add_argument('--n_eps', type=int, default=6000,
-                    help='Number of episodes')
-args = parser.parse_args()
-
-num_episodes=args.n_eps         
-ticket=args.ticket
-dt_ini_train=args.train_time.split('/')[0]
-dt_final_train=args.train_time.split('/')[1]
-
-df_train = pdr.get_data_yahoo(ticket, dt_ini_train, dt_final_train)
+dt_ini_train = "2012-01-01"
+dt_final_train = "2017-12-31"
+df_train = pdr.get_data_yahoo("AAPL", dt_ini_train, dt_final_train)
 
 gym.envs.register(
     id='TradeEnvTrain',
@@ -61,16 +48,10 @@ agent = Agent(state_size=state_size, action_size=action_size, random_seed=42)
 def ddpg(n_episodes=2000, max_t=300, print_every=20):
     scores_deque = deque(maxlen=print_every)
     scores = []
-    diffs = []
     for i_episode in range(1, n_episodes+1):
         state, _ = env.reset()
         agent.reset()
         score = 0
-
-        initial_price = env.historical_price.iloc[env.idx, :]["Close"]
-        last_price = env.historical_price.iloc[env.idx + 300, :]["Close"]
-        baseline = (1000/initial_price)*last_price
-
         while True:
             action = agent.act(state)
             next_state, reward, done, *_ = env.step(action)
@@ -79,20 +60,11 @@ def ddpg(n_episodes=2000, max_t=300, print_every=20):
             score += reward
             if done:
                 break 
+        scores_deque.append(score)
         scores.append(score)
-        average_score = np.mean(scores[i_episode-min(i_episode,scores_average_window):i_episode+1])
-        
-        try:
-            patrimony = env.valorisation(last_price)[0]
-        except:
-            patrimony = env.valorisation(last_price)
-        diffs.append(patrimony-baseline)
-        average_diff = np.mean(diffs[i_episode-min(i_episode,scores_average_window):i_episode+1])
-        
-        print('\rEpi {}\tAvg Rwd: {:.2f}\tBaseline: {:.2f}\tpat: {:.2f}\tavg diff: {:.2f}'.format(i_episode, average_score, baseline, patrimony, average_diff), end="")
-        # Print average score every scores_average_window episodes
-        if i_episode % scores_average_window == 0:
-            print('\rEpi {}\tAvg Rwd: {:.2f}\tBaseline: {:.2f}\tpat: {:.2f}\tavg diff: {:.2f}'.format(i_episode, average_score, baseline, patrimony, average_diff))
+        print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)), end="")
+        if i_episode % print_every == 0:
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
     nn_filename_actor = "Algorithms/DDPG/results/ddpg_actor_" + timestr + ".pth"
@@ -103,13 +75,10 @@ def ddpg(n_episodes=2000, max_t=300, print_every=20):
     scores_filename = "Algorithms/DDPG/results/ddpgAgent_scores_" + timestr + ".csv"
     np.savetxt(scores_filename, scores, delimiter=",")
 
-    scores_filename = "Algorithms/DDPG/results/ddpgAgent_diffs_" + timestr + ".csv"
-    np.savetxt(scores_filename, diffs, delimiter=",")
-
     return scores
 
 
-scores = ddpg(n_episodes=num_episodes)
+scores = ddpg()
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
