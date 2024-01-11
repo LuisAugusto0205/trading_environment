@@ -1,16 +1,16 @@
 import sys
-sys.path.append("C:\\Users\\gutop\\Documents\\BIA\\BIA_Semestre_8\\Residencia\\Semana_6\\code\\ray-rllib\\")
+import os
+sys.path.append('\\'.join(os.path.abspath(__file__).split('\\')[:-3]))
 
-import torch
 import time
-import random
+import torch
 import numpy as np
-from ddpg_agent import Agent
-from TradingEnv_continuos import TradingMarket
+import argparse
+from TradingEnv import TradingMarket, SimpleTradingEnv
 import gymnasium as gym
 import pandas_datareader.data as pdr
 import yfinance
-import argparse
+import pickle
 
 yfinance.pdr_override()
 
@@ -21,25 +21,21 @@ parser.add_argument('--ticket', type=str, default='AAPL',
                     help='Ticket from Yahoo Finance')
 parser.add_argument('--test_time', type=str, default='2020-01-01/2024-01-01',
                     help='Time range that agent will be trained')
-parser.add_argument('--save_critic', type=str, default='',
-                    help='Path to Saved critic model')
-parser.add_argument('--save_actor', type=str, default='',
-                    help='Path to Saved actor model')
+parser.add_argument('--save', type=str, default='',
+                    help='Path to Saved model')
 
 args = parser.parse_args()
-path_save_critic = args.save_critic
-path_save_actor = args.save_actor
          
 ticket=args.ticket
 dt_ini_test=args.test_time.split('/')[0]
-dt_final_test=args.test_time.split('/')[1]   
+dt_final_test=args.test_time.split('/')[1] 
+path_save = args.save  
 
 df_test = pdr.get_data_yahoo(ticket, dt_ini_test, dt_final_test)
 
-
 gym.envs.register(
     id='TradeEnvTest',
-    entry_point=TradingMarket,
+    entry_point=SimpleTradingEnv,
     kwargs={
         "env_config": {
             "OHCL": df_test,
@@ -53,41 +49,41 @@ gym.envs.register(
 
 env = gym.make('TradeEnvTest')
 
-action_size = env.action_space.shape[0]
-state_size = env.observation_space.shape[0]
-agent = Agent(state_size=state_size, action_size=action_size, random_seed=42)
 
-# Load trained model weights
-agent.actor_local.load_state_dict(torch.load(f'Algorithms\DDPG\\results\{path_save_actor}.pth'))
-agent.critic_local.load_state_dict(torch.load(f'Algorithms\DDPG\\results\{path_save_critic}.pth'))
-
+with open(f'Algorithms/Q-Learning/results/{path_save}.pkl', 'rb') as file:
+    Q = pickle.load(file)
+print(len(Q))
 diffs = []
-scores = []
-print(num_episodes)
+scores =[]
 for i_episode in range(1, num_episodes+1):
 
-    state, _ = env.reset()     
+    state, _ = env.reset()   
 
     score = 0
 
     done = False
     while not done:
         # determine epsilon-greedy action from current sate
-        action = agent.act(state)          
+        state = ''.join([str(int(x)) for x in state])
+        try: 
+            action = np.argmax(Q[state]) 
+        except:
+            Q[state] = [0, 0]
+            action = np.argmax(Q[state]) 
         next_state, reward, done, *_  = env.step(action)   
 
         state = next_state
         score += reward
     
+    scores.append(score)
     
     init_price = env.history[0][3]
     end_price = env.history[-1][3]
     baseline = (1000/init_price) * end_price
-    patrimony = env.history[-1][1][0]
+    patrimony = env.history[-1][1]
 
     diff = patrimony - baseline
     diffs.append(diff)
-    scores.append(score)
     print('\rEpisode {}\tScore: {:.2f}\tbaseline: {:.2f}\tpatrimony: {:.2f}\tdiff: {:.2f}'.format(i_episode, score, baseline, patrimony, diff), end="")
 
 diffs = np.array(diffs)
@@ -96,5 +92,6 @@ n_pos_diff = (diffs > 0).sum()
 n_neg_diff = num_episodes - n_pos_diff
 print(f'\n\npositive diff: {n_pos_diff}\nnegative diff: {n_neg_diff}\n Avg diff: {diffs.mean()}\n Std diff: {diffs.std()}\n Avg rwd: {scores.mean()}\n Std rwd: {scores.std()}')
 
-with open("log_ddpg.txt", "w") as file:
+timestr = time.strftime("%Y%m%d-%H%M%S")
+with open(f"Algorithms\\Q-Learning\\results\\log_dqn_return-{ticket}-{timestr}.txt", "w") as file:
     file.write(str(env.history))
