@@ -131,7 +131,7 @@ class TradingMarket(gym.Env):
         val = self.valorisation(price)
         base = utils.compare_baseline(self.history, val, k=self.window)
         up_low = utils.upper_lower(self.historical_price.iloc[self.idx: self.idx+2, :]['Close'], self.position)
-        return 1*up_low + 0*base #1*op + 0*ret + 0*base
+        return 0.8*up_low + 0.2*base #1*op + 0*ret + 0*base
     
 
 class SimpleTradingEnv(TradingMarket):
