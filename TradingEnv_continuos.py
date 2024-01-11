@@ -90,7 +90,7 @@ class TradingMarket(gym.Env):
             self.avaiable_money -= 0.001*asset_to_trade*price
         
         next_price = self.historical_price.iloc[self.idx+1, :]['Close']
-        new_value = self.valorisation(price)
+        new_value = self.valorisation(next_price)
 
         self.history.append((
             self.historical_price.iloc[self.idx+1, :].name.strftime("%m/%d/%Y"), 
@@ -116,4 +116,5 @@ class TradingMarket(gym.Env):
         """
         Função de recompensa que guiará o aprendizado.
         """
-        return self.reward_func(history, **kwargs)
+        up_low = utils.upper_lower(self.historical_price.iloc[self.idx: self.idx+2, :]['Close'], self.position)
+        return 1*up_low
